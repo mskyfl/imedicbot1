@@ -113,15 +113,27 @@ qa_prompt = PromptTemplate(
 pinecone_index_list = select_index(embeddings)
 pinecone_index = st.sidebar.selectbox(label="Select Index", options = pinecone_index_list )
 
-templat = """You are helpful information giving QA System and make sure you don't answer anything not related to following context. You are always provide useful information & details available in the given context. Use the context to provide long, detailed and informative answer to the question at the end. 
-If you don't know the answer, just say that you don't know, don't try to make up an answer. Answer should be long and detailed. Also check chat history if question can be answered from it or question asked about previous history.
-Don't use "According to context" or "Based on context" phrases in response and answer in conversational way keeping chat history in loop.
+# templat = """You are helpful information giving QA System and make sure you don't answer anything not related to following context. You are always provide useful information & details available in the given context. Use the context to provide long, detailed and informative answer to the question at the end. 
+# If you don't know the answer, just say that you don't know, don't try to make up an answer. Answer should be long and detailed. Also check chat history if question can be answered from it or question asked about previous history.
+# Don't use "According to context" or "Based on context" phrases in response and answer in conversational way keeping chat history in loop.
 
-Chat History: {chat_history}
-Question: {human_input}
-Use following context to provide the most optimal answer to the Question.
-Context:"""
+# Chat History: {chat_history}
+# Question: {human_input}
+# Use following context to provide the most optimal answer to the Question.
+# Context:"""
+templat = """Assistant is a large language model.
 
+            Assistant is designed to be able to assist with a wide range of tasks, from answering simple questions to providing in-depth explanations and discussions on a wide range of topics. As a language model, Assistant is able to generate human-like text based on the input it receives, allowing it to engage in natural-sounding conversations and provide responses that are coherent and relevant to the topic at hand.
+
+            Assistant is constantly learning and improving, and its capabilities are constantly evolving. It is able to process and understand large amounts of text, and can use this knowledge to provide accurate and informative responses to a wide range of questions. Additionally, Assistant is able to generate its own text based on the input it receives, allowing it to engage in discussions and provide explanations and descriptions on a wide range of topics.
+
+            Overall, Assistant is a powerful tool that can help with a wide range of tasks and provide valuable insights and information on a wide range of topics. Whether you need help with a specific question or just want to have a conversation about a particular topic, Assistant is here to assist.
+            
+            Always check history to see whether it is a follow-up question asked by human or not and answer accordingly.
+
+            {chat_history}
+            Human: {human_input}
+            Helpful Information:"""
 
 
 chatGPT_template = """Assistant is a large language model trained by OpenAI.
@@ -218,9 +230,9 @@ def chat(pinecone_index):
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
             full_response = ""
-            st_callback = StreamlitCallbackHandler(st.container(), 
-                                                   expand_new_thoughts=True, 
-                                                    collapse_completed_thoughts=True)
+            st_callback = StreamlitCallbackHandler(st.container(),) 
+                                                #    expand_new_thoughts=True, 
+                                                #     collapse_completed_thoughts=True)
             #stream_handler = StreamHandler(st.empty())
             #if meth_sw:
             agent, contex, web_res, result_string, output = agent_meth(prompt, pt)
