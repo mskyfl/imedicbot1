@@ -21,6 +21,7 @@ from langchain.agents.agent_toolkits import create_retriever_tool
 from langchain.agents import AgentType, initialize_agent, load_tools, Tool
 from langchain.agents.agent_toolkits import create_conversational_retrieval_agent
 from langchain.chains import RetrievalQA
+from langchain.callbacks.base import BaseCallbackHandler
 
 # Setting up Streamlit page configuration
 st.set_page_config(
@@ -54,10 +55,10 @@ def select_index(__embeddings):
 text_field = "text"
 # Create OpenAI embeddings
 embeddings = OpenAIEmbeddings(model = 'text-embedding-ada-002')
-MODEL_OPTIONS = ["gpt-3.5-turbo", "gpt-4"]
+MODEL_OPTIONS = ["gpt-4", "gpt-3.5-turbo"]
 model_name = st.sidebar.selectbox(label="Select Model", options=MODEL_OPTIONS)
-lang_options = ["English", "German", "French", "Chinese", "Italian", "Japanese", "Arabic", "Hindi", "Turkish", "Urdu"]
-lang_dic = {"English":"\nAnswer in English", "German":"\nAnswer in German", "French":"\nAnswer in French", "Chinese":"\nAnswer in Chinese", "Italian":"\nAnswer in Italian", "Japanese":"\nAnswer in Japanese", "Arabic":"\nAnswer in Arabic", "Hindi":"\nAnswer in Hindi", "Turkish":"\nAnswer in Turkish", "Urdu":"\nAnswer in Urdu"}
+lang_options = ["English", "German", "French", "Chinese", "Italian", "Japanese", "Arabic", "Hindi", "Turkish", "Urdu", "Russian", "Georgian"]
+lang_dic = {"English":"\nAnswer in English", "German":"\nAnswer in German", "French":"\nAnswer in French", "Chinese":"\nAnswer in Chinese", "Italian":"\nAnswer in Italian", "Japanese":"\nAnswer in Japanese", "Arabic":"\nAnswer in Arabic", "Hindi":"\nAnswer in Hindi", "Turkish":"\nAnswer in Turkish", "Urdu":"\nAnswer in Urdu", "Russian":"\nAnswer in Russian language", "Georgian":"\nAnswer in Georgian language"}
 language = st.sidebar.selectbox(label="Select Language", options=lang_options)
 
 @st.cache_resource
@@ -113,8 +114,8 @@ pinecone_index_list = select_index(embeddings)
 pinecone_index = st.sidebar.selectbox(label="Select Index", options = pinecone_index_list )
 
 templat = """You are helpful information giving QA System and make sure you don't answer anything not related to following context. You are always provide useful information & details available in the given context. Use the context to provide long, detailed and informative answer to the question at the end. 
-If you don't know the answer, just say that you don't know, don't try to make up an answer. Answer should be long and detailed.
-
+If you don't know the answer, just say that you don't know, don't try to make up an answer. Answer should be long and detailed. Also check chat history if question can be answered from it or question asked about previous history.
+Don't use "According to context" or "Based on context" phrases in response and answer in conversational way keeping chat history in loop.
 
 Chat History: {chat_history}
 Question: {human_input}
@@ -162,7 +163,7 @@ def chat(pinecone_index):
         templ = templat + contex
         promptt = PromptTemplate(input_variables=["chat_history", "human_input"], template=templ)
         agent = LLMChain(
-            llm=OpenAI(model_name = model_name, temperature=0),
+            llm=ChatOpenAI(model_name = model_name, streaming=True, temperature=0),
             prompt=promptt,
             verbose=True,
             memory=memory
@@ -216,27 +217,38 @@ def chat(pinecone_index):
             st.markdown(prompt)
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
-            st_callback = StreamlitCallbackHandler(st.container())
+            full_response = ""
+            st_callback = StreamlitCallbackHandler(st.container(), 
+                                                   expand_new_thoughts=True, 
+                                                    collapse_completed_thoughts=True)
+            #stream_handler = StreamHandler(st.empty())
             #if meth_sw:
             agent, contex, web_res, result_string, output = agent_meth(prompt, pt)
-            with st.spinner("Thinking..."):
-                with get_openai_callback() as cb:
-                    #st.sidebar.write(agent.agent.llm_chain.prompt.template)
-                    response = agent.predict(human_input=prompt, callbacks=[st_callback])#.run(prompt, callbacks=[st_callback])
-                    st.session_state.chat_history.append((prompt, response))
-                    message_placeholder.markdown(response)
-                    st.session_state.messages.append({"role": "assistant", "content": response})
+            #with st.spinner("Thinking..."):
+            with get_openai_callback() as cb:
+                #st.sidebar.write(agent.agent.llm_chain.prompt.template)
+                response = agent.predict(human_input=prompt, chat_history = st.session_state.messages,callbacks=[st_callback])#, callbacks=[st_callback])#.run(prompt, callbacks=[st_callback])
+                st.write(response)
+                st.session_state.chat_history.append((prompt, response))
+                # for respons in response:
+                #     full_response += respons
+                
+                #message_placeholder.markdown(response)
+                st.session_state.messages.append({"role": "assistant", "content": response})
             st.sidebar.header("Total Token Usage:")
             st.sidebar.write(f"""
                     <div style="text-align: left;">
                         <h3>   {cb.total_tokens}</h3>
                     </div> """, unsafe_allow_html=True)
-            # st.sidebar.write("Information Processing: ", "---")
-            # st.sidebar.write("Web Results: ", web_res)
-            # st.sidebar.write("---")
-            # st.sidebar.write("Database Results: ", result_string)
-            # st.sidebar.write("---")
-            # st.sidebar.write("ChatGPT Results: ", output)
+            st.sidebar.write("Information Processing: ", "---")
+            st.sidebar.header(":red[Web Results:] ")
+            st.sidebar.write(web_res)
+            st.sidebar.write("---")
+            st.sidebar.header(":red[Database Results:] ")
+            st.sidebar.write(result_string)
+            st.sidebar.write("---")
+            st.sidebar.header(":red[ChatGPT Results:] ")
+            st.sidebar.write(output)
             # else:
             #     agent = retr(prompt_temp)
             #     with st.spinner("Thinking..."):
